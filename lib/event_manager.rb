@@ -1,10 +1,10 @@
+require 'csv'
 puts "Event Manager Initialized!\n\n"
 
-File.exist?("event_attendees.csv") ? lines = File.readlines('event_attendees.csv') : raise("Terminating program")
+File.exist?("event_attendees.csv") ? contents = CSV.open('event_attendees.csv', headers: true, header_converters: :symbol) : raise("Terminating program")
 
-lines.each_with_index do |line, index|
-  next if index == 0
-  col = line.split(",")
-  name = col[2]
-  puts name
+contents.each do |row|
+  name = row[:first_name]
+  zipcode = row[:zipcode]
+  puts "#{name} #{zipcode}"
 end
