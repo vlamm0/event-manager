@@ -1,6 +1,7 @@
 require 'csv'
 require 'google/apis/civicinfo_v2'
 require 'erb'
+require 'time'
 
 
 
@@ -37,6 +38,11 @@ def legislators_by_zipcode(zipcode, civic_info = Google::Apis::CivicinfoV2::Civi
   end
 end
 
+def format_time(reg)
+  formatted = Time.strptime(reg, "%m/%d/%Y %k:%M")
+  [formatted.strftime("%k"), formatted.strftime("%m")]
+end
+
 # saves thank you letters into output folder
 def save_thank_you_letter(id, personal_letter)
   Dir.mkdir('output') unless Dir.exist?('output')
@@ -50,6 +56,7 @@ puts "Event Manager Initialized!\n\n"
 File.exist?("event_attendees.csv") ? contents = CSV.open('event_attendees.csv', headers: true, header_converters: :symbol) : raise("Terminating program")
 template_letter = File.read('form_letter.erb')
 erb_template = ERB.new(template_letter)
+hours = Hash.new()
 
 contents.each do |row|
   # name and legislators are used in template binfing
@@ -59,7 +66,13 @@ contents.each do |row|
   phone = clean_phone(row[:homephone])
   legislators = legislators_by_zipcode(zipcode)
   
+  #peak hours
+  hour, day = format_time(row[:regdate])
+  hours[hour].nil? ? hours[hour] = 1 : hours[hour] += 1
   # create personalized html letter and save into output
-   personal_letter = erb_template.result(binding)
-   save_thank_you_letter(id, personal_letter)
+  #  personal_letter = erb_template.result(binding)
+  #  save_thank_you_letter(id, personal_letter)
 end
+
+peak_hours = hours.to_a.sort_by {|k, v| v}.last(2).map{|k, v| k}
+puts peak_hours
