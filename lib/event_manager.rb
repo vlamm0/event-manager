@@ -2,12 +2,11 @@ require 'csv'
 require 'google/apis/civicinfo_v2'
 require 'erb'
 require 'time'
+require 'date'
 
+DAYS = %w[Sunday Monday Tuesday Wednesday Thursday Friday Saturday]
 
-
-# if the zip code is exactly five digits, assume that it is ok
-# if the zip code is more than five digits, truncate it to the first five digits
-# if the zip code is less than five digits, add zeros to the front until it becomes five digits
+#  5 digit zip
 def clean_zipcode(zipcode)  
   zipcode.to_s.rjust(5, '0')[0..4]
 end
@@ -38,9 +37,22 @@ def legislators_by_zipcode(zipcode, civic_info = Google::Apis::CivicinfoV2::Civi
   end
 end
 
+# returns the reg day as an hour and day of the week
 def format_time(reg)
   formatted = Time.strptime(reg, "%m/%d/%Y %k:%M")
-  [formatted.strftime("%k"), formatted.strftime("%m")]
+  date = "20" + formatted.strftime("%Y-%m-%d")
+  day = Date.strptime(date).wday
+  [formatted.strftime("%k"), DAYS[day]]
+end
+
+# adds day or hour to tally-hash
+def set_hash(hash, key)
+  hash[key].nil? ? hash[key] = 1 : hash[key] += 1
+end
+
+# returns 2 keys with the greatest number of occurences
+def get_peak_results(hash)
+  hash.to_a.sort_by {|k, v| v}.last(2).map{|k, v| k}
 end
 
 # saves thank you letters into output folder
@@ -52,27 +64,38 @@ end
 
 
 #  main code
+
 puts "Event Manager Initialized!\n\n"
 File.exist?("event_attendees.csv") ? contents = CSV.open('event_attendees.csv', headers: true, header_converters: :symbol) : raise("Terminating program")
 template_letter = File.read('form_letter.erb')
 erb_template = ERB.new(template_letter)
 hours = Hash.new()
+days = Hash.new()
 
 contents.each do |row|
-  # name and legislators are used in template binfing
   id = row[0]
   name = row[:first_name]
   zipcode = clean_zipcode(row[:zipcode])
   phone = clean_phone(row[:homephone])
   legislators = legislators_by_zipcode(zipcode)
-  
-  #peak hours
   hour, day = format_time(row[:regdate])
-  hours[hour].nil? ? hours[hour] = 1 : hours[hour] += 1
+  
+  # create a tallyinh hash for hours & days
+  set_hash(hours, hour)
+  set_hash(days, day)
+
   # create personalized html letter and save into output
-  #  personal_letter = erb_template.result(binding)
-  #  save_thank_you_letter(id, personal_letter)
+  personal_letter = erb_template.result(binding)
+  save_thank_you_letter(id, personal_letter)
+
 end
 
-peak_hours = hours.to_a.sort_by {|k, v| v}.last(2).map{|k, v| k}
+# get results
+peak_hours = get_peak_results(hours)
+peak_days = get_peak_results(days)
+
+# display hours
+puts "PEAK HOURS\n" 
 puts peak_hours
+puts "\n\nPEAK DAYS\n"
+puts peak_days
