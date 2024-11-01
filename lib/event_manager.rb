@@ -11,6 +11,13 @@ def clean_zipcode(zipcode)
   zipcode.to_s.rjust(5, '0')[0..4]
 end
 
+# valid 10 digit numbers 
+def clean_phone(phone)
+  #remove non-nums
+  new = phone.to_s.gsub(/[^0-9]/, "")
+  new.length == 10 || (new.length == 11 && new[0] == '1') ? new[-10..-1] : 'BAD NUMBER'
+end
+
 # uses google-api to retrieve unique legislators for given zipcode
 def legislators_by_zipcode(zipcode, civic_info = Google::Apis::CivicinfoV2::CivicInfoService.new)
   # api access
@@ -49,9 +56,10 @@ contents.each do |row|
   id = row[0]
   name = row[:first_name]
   zipcode = clean_zipcode(row[:zipcode])
+  phone = clean_phone(row[:homephone])
   legislators = legislators_by_zipcode(zipcode)
-
+  
   # create personalized html letter and save into output
-  personal_letter = erb_template.result(binding)
-  save_thank_you_letter(id, personal_letter)
+   personal_letter = erb_template.result(binding)
+   save_thank_you_letter(id, personal_letter)
 end
